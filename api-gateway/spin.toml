@@ -16,3 +16,6 @@ allowed_outbound_hosts = []
 [component.api-gateway.build]
 command = "cargo build --target wasm32-wasip1 --release"
 watch = ["src/**/*.rs", "Cargo.toml"]
+
+[component.api-gateway.dependencies]
+"component:api1/data-handler" = { path = "../target/wasm32-unknown-unknown/debug/api1.wasm" }

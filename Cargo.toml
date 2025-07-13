@@ -1,15 +1,15 @@
-[package]
-name = "api-gateway"
-authors = ["Kai Walter <kai.walter@outlook.de>"]
-description = ""
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["api-gateway","api1"]
+resolver = "2"
 
-[lib]
-crate-type = ["cdylib"]
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1"
 spin-sdk = "3.0.1"
+wit-bindgen = "0.43.0"
 
-[workspace]
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+debug = false
+strip = true
+lto = true
