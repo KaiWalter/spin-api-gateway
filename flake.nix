@@ -36,8 +36,12 @@
               pkgs.rustfmt
               pkgs.fermyon-spin
               pkgs.cargo-component
+              pkgs.wasm-tools
             ];
             RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
+            OPENSSL_LIB_DIR = "${openssl.out}/lib";
+            OPENSSL_INCLUDE_DIR = "${openssl.dev}/include";
+            OPENSSL_NO_VENDOR = "1";
           };
       }
     );
