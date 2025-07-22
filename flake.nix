@@ -34,9 +34,10 @@
               pkgs.rust-analyzer-unwrapped
               pkgs.rustup
               pkgs.rustfmt
-              pkgs.fermyon-spin
               pkgs.cargo-component
               pkgs.wasm-tools
+              pkgs.fermyon-spin
+              pkgs.gh
             ];
             RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
             OPENSSL_LIB_DIR = "${openssl.out}/lib";
