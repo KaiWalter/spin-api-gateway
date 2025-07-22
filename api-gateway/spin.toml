@@ -11,7 +11,7 @@ route = "/..."
 component = "api-gateway"
 
 [component.api-gateway]
-source = "target/wasm32-wasip1/release/api_gateway.wasm"
+source = "../target/wasm32-wasip1/debug/api_gateway.wasm"
 allowed_outbound_hosts = []
 [component.api-gateway.build]
 command = "cargo build --target wasm32-wasip1 --release"

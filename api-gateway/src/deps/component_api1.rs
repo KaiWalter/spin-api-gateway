@@ -1,4 +1,4 @@
-::spin_sdk::wit_bindgen::generate!({
+wit_bindgen::generate!({
     inline: r#"
     package imported:component-api1;
     world imports {
@@ -9,4 +9,5 @@
         "component:api1/data-handler": generate,
     },
     path: ".wit/components/deps/api1/component-api1.wit",
+    additional_derives: [serde::Deserialize],
 });

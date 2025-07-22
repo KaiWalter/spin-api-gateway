@@ -31,6 +31,7 @@ dependencies = [
  "serde",
  "serde_json",
  "spin-sdk",
+ "wit-bindgen 0.43.0",
 ]
 
 [[package]]
