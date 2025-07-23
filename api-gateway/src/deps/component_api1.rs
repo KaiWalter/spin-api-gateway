@@ -8,6 +8,8 @@ wit_bindgen::generate!({
     with: {
         "component:api1/data-handler": generate,
     },
-    path: ".wit/components/deps/api1/component-api1.wit",
+    // Reference the shared WIT package from the api1 crate
+    path: "../api1/wit/world.wit",
     additional_derives: [serde::Deserialize],
+    world: "imported:component-api1/imports",
 });
