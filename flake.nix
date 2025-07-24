@@ -38,11 +38,15 @@
               pkgs.wasm-tools
               pkgs.fermyon-spin
               pkgs.gh
+              pkgs.zsh
             ];
             RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
             OPENSSL_LIB_DIR = "${openssl.out}/lib";
             OPENSSL_INCLUDE_DIR = "${openssl.dev}/include";
             OPENSSL_NO_VENDOR = "1";
+            shellHook = ''
+              exec zsh
+            '';
           };
       }
     );
