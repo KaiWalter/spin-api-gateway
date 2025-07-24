@@ -1,6 +1,6 @@
 [package]
-name = "api1"
-description = "one sample API"
+name = "api2"
+description = "another sample API"
 version = "0.1.0"
 edition = "2021"
 

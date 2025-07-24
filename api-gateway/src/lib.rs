@@ -1,6 +1,6 @@
 mod deps;
 
-use deps::component_api1::component::api1::data_handler::{handle_data, MyObject};
+use deps::component_api1::component::api::data_handler::{handle_data, MyObject};
 use spin_sdk::http::{IntoResponse, Request, Response};
 use spin_sdk::http_component;
 use serde_json::from_slice;

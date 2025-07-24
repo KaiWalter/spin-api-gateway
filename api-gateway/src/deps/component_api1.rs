@@ -1,15 +1,15 @@
 wit_bindgen::generate!({
     inline: r#"
-    package imported:component-api1;
+    package imported:component-api;
     world imports {
-        import component:api1/data-handler;
+        import component:api/data-handler;
     }
     "#,
     with: {
-        "component:api1/data-handler": generate,
+        "component:api/data-handler": generate,
     },
-    // Reference the shared WIT package from the api1 crate
-    path: "../api1/wit/world.wit",
+    // Reference the shared WIT package from the root directory
+    path: "../wit/world.wit",
     additional_derives: [serde::Deserialize],
-    world: "imported:component-api1/imports",
+    world: "imported:component-api/imports",
 });
