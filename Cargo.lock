@@ -44,6 +44,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "api2"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "spin-sdk",
+ "wit-bindgen 0.43.0",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
