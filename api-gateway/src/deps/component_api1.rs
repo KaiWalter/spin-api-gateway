@@ -2,11 +2,11 @@ wit_bindgen::generate!({
     inline: r#"
     package imported:component-api1;
     world imports {
-        import component:api1/data-handler;
+        import component:api1/request-handler;
     }
     "#,
     with: {
-        "component:api1/data-handler": generate,
+        "component:api1/request-handler": generate,
     },
     // Reference the shared WIT package from the repo root
     path: "../wit/world.wit",

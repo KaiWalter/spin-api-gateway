@@ -1,7 +1,7 @@
 mod deps;
 
-use deps::component_api1::component::api1::data_handler::{handle_data as handle_data_api1, ApiRequest};
-use deps::component_api2::component::api2::data_handler as api2;
+use deps::component_api1::component::api1::request_handler::{handle_data as handle_data_api1, ApiRequest};
+use deps::component_api2::component::api2::request_handler as api2;
 use spin_sdk::http::{IntoResponse, Request, Response};
 use spin_sdk::http_component;
 use serde_json::from_slice;

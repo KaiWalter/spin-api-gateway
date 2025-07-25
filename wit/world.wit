@@ -1,6 +1,6 @@
 package component:api1;
 
-interface data-handler {
+interface request-handler {
   // The function to pass on the API request to.
   handle-data: func(key: api-request) -> api-request;
 
@@ -13,5 +13,5 @@ interface data-handler {
 }
 
 world api {
-  export data-handler;
+  export request-handler;
 }

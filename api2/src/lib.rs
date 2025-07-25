@@ -1,4 +1,4 @@
-use exports::component::api2::data_handler::{Guest, ApiRequest};
+use exports::component::api2::request_handler::{Guest, ApiRequest};
 
 wit_bindgen::generate!({
     world: "api",
