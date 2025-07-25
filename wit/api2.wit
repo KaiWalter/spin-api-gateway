@@ -1,0 +1,17 @@
+package component:api2;
+
+interface data-handler {
+  // The function to pass on the my-object to.
+  handle-data: func(key: my-object) -> my-object;
+
+  // The my-object record, aka. the object to pass between the two components.
+  record my-object {
+    name: string,
+    steps: u32,
+    processed: option<bool>,
+  }
+}
+
+world api {
+  export data-handler;
+}

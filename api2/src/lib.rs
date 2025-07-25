@@ -1,8 +1,8 @@
-use exports::component::api1::data_handler::{Guest, MyObject};
+use exports::component::api2::data_handler::{Guest, MyObject};
 
 wit_bindgen::generate!({
     world: "api",
-    path: "../wit/world.wit",
+    path: "../wit/api2.wit",
 });
 
 struct Component;
