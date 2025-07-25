@@ -12,6 +12,6 @@ interface data-handler {
   }
 }
 
-world api1 {
+world api {
   export data-handler;
 }

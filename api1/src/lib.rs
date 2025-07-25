@@ -1,7 +1,7 @@
 use exports::component::api1::data_handler::{Guest, MyObject};
 
 wit_bindgen::generate!({
-    world: "api1",
+    world: "api",
 });
 
 struct Component;
