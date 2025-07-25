@@ -1,21 +1,15 @@
 wit_bindgen::generate!({
     inline: r#"
-    package component:api2;
-
-    interface request-handler {
-        handle-data: func(key: api-request) -> api-request;
-
-        record api-request {
-            name: string,
-            steps: u32,
-            processed: option<bool>,
-        }
-    }
-
-    world imports-api2 {
-        import request-handler;
+    package imported:component-api;
+    world imports {
+        import component:api/request-handler;
     }
     "#,
+    with: {
+        "component:api/request-handler": generate,
+    },
+    // Reference the shared WIT package from the repo root
+    path: "../wit/world.wit",
     additional_derives: [serde::Deserialize],
-    world: "imports-api2",
+    world: "imported:component-api/imports",
 });
