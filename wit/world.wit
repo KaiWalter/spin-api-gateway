@@ -1,11 +1,11 @@
 package component:api1;
 
 interface data-handler {
-  // The function to pass on the my-object to.
-  handle-data: func(key: my-object) -> my-object;
+  // The function to pass on the API request to.
+  handle-data: func(key: api-request) -> api-request;
 
-  // The my-object record, aka. the object to pass between the two components.
-  record my-object {
+  // The API request record, aka. the object to pass between the two components.
+  record api-request {
     name: string,
     steps: u32,
     processed: option<bool>,
