@@ -1,30 +1,20 @@
-// Import the WIT-generated trait for http-handler
+use crate::exports::gateway::api::http_handler::{Guest,HttpRequest,HttpResponse};
+
 wit_bindgen::generate!({
-    world: "api-component",
+    world: "api",
     path: "../wit/shared-api.wit",
-    // or proper path to wit file
 });
 
-use exports::gateway::api::http_handler::{self, HttpRequest, HttpResponse};
+struct Api;
 
-// Exported implementation for the component
-struct ApiHandler;
-
-impl http_handler::Guest for ApiHandler {
+impl Guest for Api {
     fn handle_http_request(request: HttpRequest) -> HttpResponse {
-        // Example logic: echo the path
-        let body = format!("Hello from API1! You called: {}", request.path)
-            .into_bytes();
-
         HttpResponse {
             status: 200,
-            headers: vec![
-                ("content-type".to_string(), "text/plain".to_string())
-            ],
-            body: Some(body),
+            headers: vec![("content-type".to_string(), "text/plain".to_string())],
+            body: Some(format!("Hello from API1! You said: {}", request.path).into_bytes()),
         }
     }
 }
 
-// Entrypoint for the wasm module (if required by the toolchain)
-export!(ApiHandler);
+export!(Api);

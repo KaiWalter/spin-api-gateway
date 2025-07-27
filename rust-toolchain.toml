@@ -1,4 +1,4 @@
 [toolchain]
-channel = "stable"
-targets = ["wasm32-wasip1", "wasm32-unknown-unknown"]
+targets = ["wasm32-wasip1", "wasm32-wasip2", "wasm32-unknown-unknown"]
 components = ["rust-src"]
+channel = "nightly"

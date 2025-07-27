@@ -1,5 +1,5 @@
 [workspace]
-members = ["api-gateway", "api1", "api2", "api-gateway/wasm"]
+members = ["api-gateway", "api1", "api2"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -9,6 +9,7 @@ tokio = { version = "1", features = ["full"] }
 wit-bindgen = "0.43.0"
 wit-component = "0.235.0"
 wasmtime = "35.0.0"
+wasmtime-wasi = "35.0.0"
 
 [profile.release]
 codegen-units = 1

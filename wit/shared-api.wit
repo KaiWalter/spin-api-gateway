@@ -19,7 +19,7 @@ interface http-handler {
     handle-http-request: func(request: http-request) -> http-response;
 }
 
-world api-component {
+world api {
     export http-handler;
 }
 
