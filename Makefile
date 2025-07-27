@@ -1,6 +1,4 @@
-# Makefile for building api1 and api-gateway
-
-.PHONY: all api1 api2 api-gateway run
+.PHONY: all api1 api2 guest api-gateway run
 
 all: api1 api2 api-gateway
 
@@ -10,8 +8,11 @@ api1:
 api2:
 	cd api2 && cargo component build --target wasm32-unknown-unknown
 
+guest:
+	cd api-gateway/wasm && cargo build --target wasm32-unknown-unknown
+
 api-gateway:
-	cd api-gateway && spin build
+	cd api-gateway && cargo build
 
 run:
-	cd api-gateway && spin up
+	target/debug/api-gateway

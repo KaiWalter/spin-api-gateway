@@ -36,6 +36,7 @@
               pkgs.rustfmt
               pkgs.cargo-component
               pkgs.wasm-tools
+              pkgs.wasmtime
               pkgs.fermyon-spin
               pkgs.gh
               pkgs.zsh

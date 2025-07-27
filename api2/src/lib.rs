@@ -1,38 +1,31 @@
-use exports::component::api2::request_handler::{Guest, ApiRequest};
 
+// Import the WIT-generated trait for http-handler
 wit_bindgen::generate!({
-    inline: r#"
-    package component:api2;
-
-    interface request-handler {
-        handle-data: func(key: api-request) -> api-request;
-
-        record api-request {
-            name: string,
-            steps: u32,
-            processed: option<bool>,
-        }
-    }
-
-    world api {
-        export request-handler;
-    }
-    "#,
-    world: "api",
+    world: "api-component",
+    path: "../wit/shared-api.wit",
+    // or proper path to wit file
 });
 
-struct Component;
+use exports::gateway::api::http_handler::{self, HttpRequest, HttpResponse};
 
-impl Guest for Component {
-    fn handle_data(mut request: ApiRequest) -> ApiRequest {
-        println!("{:?}", request);
+// Exported implementation for the component
+struct ApiHandler;
 
-        // Manipulating the object
-        request.steps += 1;
-        request.processed = Some(true);
+impl http_handler::Guest for ApiHandler {
+    fn handle_http_request(request: HttpRequest) -> HttpResponse {
+        // Example logic: echo the path
+        let body = format!("Hello from API2! You called: {}", request.path)
+            .into_bytes();
 
-        request
+        HttpResponse {
+            status: 200,
+            headers: vec![
+                ("content-type".to_string(), "text/plain".to_string())
+            ],
+            body: Some(body),
+        }
     }
 }
 
-export!(Component);
+// Entrypoint for the wasm module (if required by the toolchain)
+export!(ApiHandler);
