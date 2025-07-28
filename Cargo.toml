@@ -1,5 +1,5 @@
 [workspace]
-members = ["wasm", "api-gateway", "api1", "api2"]
+members = ["api-gateway", "api1", "api2"]
 resolver = "2"
 
 [workspace.dependencies]
