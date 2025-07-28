@@ -48,6 +48,7 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 name = "api-gateway"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
  "hyper",
  "tokio",
@@ -2013,6 +2014,10 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "wasi"
+version = "0.0.0"
 
 [[package]]
 name = "wasi"

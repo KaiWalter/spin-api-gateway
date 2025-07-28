@@ -1,85 +1,92 @@
-use axum::{routing::post, Router, response::Html};
-use std::sync::Arc;
-use wasmtime::{Engine, Config, Store};
-use wasmtime::component::{Component, Linker};
-use wasmtime_wasi::p2::{WasiCtx, WasiCtxBuilder};
+//! Example of instantiating a wasm module which uses WASI imports.
 
-// Generate Rust bindings for the host from the same WIT interface
-wasmtime::component::bindgen!({world:"api", path:"../wit/shared-api.wit"});
+/*
+You can execute this example with:
+    cmake examples/
+    cargo run --example wasip2
+*/
 
-// Host state (if you want WASI support)
-struct HostState {
-    table: Table,
-    wasi: WasiCtx,
+use wasmtime::component::{Component, Linker, ResourceTable};
+use wasmtime::*;
+use wasmtime_wasi::p2::bindings::sync::Command;
+use wasmtime_wasi::p2::{IoView, WasiCtx, WasiCtxBuilder, WasiView};
+
+pub struct ComponentRunStates {
+    // These two are required basically as a standard way to enable the impl of IoView and
+    // WasiView.
+    // impl of WasiView is required by [`wasmtime_wasi::p2::add_to_linker_sync`]
+    pub wasi_ctx: WasiCtx,
+    pub resource_table: ResourceTable,
+    // You can add other custom host states if needed
 }
 
-impl WasiView for HostState {
-    fn table(&self) -> &Table {
-        &self.table
+impl IoView for ComponentRunStates {
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.resource_table
     }
-    fn table_mut(&mut self) -> &mut Table {
-        &mut self.table
-    }
-    fn ctx(&self) -> &WasiCtx {
-        &self.wasi
-    }
-    fn ctx_mut(&mut self) -> &mut WasiCtx {
-        &mut self.wasi
+}
+impl WasiView for ComponentRunStates {
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi_ctx
     }
 }
 
-#[tokio::main]
-async fn main() {
-    // Shared Wasmtime Engine
-    let mut config = Config::new();
-    config.wasm_component_model(true); // IMPORTANT for component model
-    let engine = Arc::new(Engine::new(&config).unwrap());
+fn main() -> Result<()> {
+    // Define the WASI functions globally on the `Config`.
+    let engine = Engine::default();
+    let mut linker = Linker::new(&engine);
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
-    // Setup Axum HTTP server
-    let app = Router::new().route("/api1", post({
-        let engine = engine.clone();
-        move |body| handle_api_request(engine.clone(), "api1.component.wasm", body)
-    }));
+    // Create a WASI context and put it in a Store; all instances in the store
+    // share this context. `WasiCtxBuilder` provides a number of ways to
+    // configure what the target program will have access to.
+    let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_args().build();
+    let state = ComponentRunStates {
+        wasi_ctx: wasi,
+        resource_table: ResourceTable::new(),
+    };
+    let mut store = Store::new(&engine, state);
 
-    println!("🚀 Gateway listening on http://127.0.0.1:3000");
-    axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-}
+    // Instantiate our component with the imports we've created, and run it.
+    println!("instantiating component...");
+    let component = Component::from_file(&engine, "target/wasm32-wasip2/debug/wasi.wasm")?;
+    let command = Command::instantiate(&mut store, &component, &linker)?;
+    println!("run component...");
+    let program_result = command.wasi_cli_run().call_run(&mut store)?;
+    if program_result.is_err() {
+        std::process::exit(1)
+    }
 
-async fn handle_api_request(
-    engine: Arc<Engine>,
-    wasm_file: &str,
-    body: axum::body::Body,
-) -> Html<String> {
-    // Collect request body
-    let bytes = hyper::body::to_bytes(body.into_inner()).await.unwrap();
-    let req_str = String::from_utf8_lossy(&bytes);
-
-    println!("Gateway received request: {}", req_str);
-
-    // Load the WASM component
-    let component = Component::from_file(&engine, wasm_file)
-        .expect("Failed to load component");
-
-    // Create HostState (WASI ctx)
-    let mut linker: Linker<HostState> = Linker::new(&engine);
-    let table = Table::new();
-    let wasi = WasiCtxBuilder::new().inherit_stdio().build();
-    let mut store = Store::new(&engine, HostState { table, wasi });
-
-    // Add the component's interface to linker
-    Api::add_to_linker(&mut linker, |state| state).unwrap();
-
-    // Instantiate the component
-    let (api_instance, _) = Api::instantiate(&mut store, &component, &linker)
-        .expect("Failed to instantiate component");
-
-    // Call the function
-    let response = api_instance
-        .call_handle_request(&mut store, &req_str)
-        .expect("Failed to call handle_request");
-
-    Html(response)
+    // Alternatively, instead of using `Command`, just instantiate it as a normal component
+    // New states
+    println!("instantiating component 2...");
+    let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_args().build();
+    let state = ComponentRunStates {
+        wasi_ctx: wasi,
+        resource_table: ResourceTable::new(),
+    };
+    let mut store = Store::new(&engine, state);
+    // Instantiate it as a normal component
+    let instance = linker.instantiate(&mut store, &component)?;
+    // Get the index for the exported interface
+    let interface_idx = instance
+        .get_export_index(&mut store, None, "wasi:cli/run@0.2.0")
+        .expect("Cannot get `wasi:cli/run@0.2.0` interface");
+    // Get the index for the exported function in the exported interface
+    let parent_export_idx = Some(&interface_idx);
+    let func_idx = instance
+        .get_export_index(&mut store, parent_export_idx, "run")
+        .expect("Cannot get `run` function in `wasi:cli/run@0.2.0` interface");
+    let func = instance
+        .get_func(&mut store, func_idx)
+        .expect("Unreachable since we've got func_idx");
+    // As the `run` function in `wasi:cli/run@0.2.0` takes no argument and return a WASI result that correspond to a `Result<(), ()>`
+    // Reference:
+    // * https://github.com/WebAssembly/wasi-cli/blob/main/wit/run.wit
+    // * Documentation for [Func::typed](https://docs.rs/wasmtime/latest/wasmtime/component/struct.Func.html#method.typed) and [ComponentNamedList](https://docs.rs/wasmtime/latest/wasmtime/component/trait.ComponentNamedList.html)
+    let typed = func.typed::<(), (Result<(), ()>,)>(&store)?;
+    let (result,) = typed.call(&mut store, ())?;
+    // Required, see documentation of TypedFunc::call
+    typed.post_return(&mut store)?;
+    result.map_err(|_| anyhow::anyhow!("error"))
 }
