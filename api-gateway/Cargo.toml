@@ -5,11 +5,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-tokio = { workspace = true }
+tokio = { version = "1", features = ["full"] }
 wasmtime = { workspace = true }
 wasmtime-wasi = { workspace = true }
 axum = "0.8"
 hyper = "1"
+warp = "0.3"
 
 [build-dependencies]
 wit-bindgen = { workspace = true }

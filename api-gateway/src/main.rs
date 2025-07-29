@@ -2,6 +2,8 @@ use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::bindings::sync::Command;
 use wasmtime_wasi::p2::{IoView, WasiCtx, WasiCtxBuilder, WasiView};
+use std::convert::Infallible;
+use warp::Filter;
 
 wasmtime::component::bindgen!("api" in "../wit/shared-api.wit");
 
@@ -21,6 +23,7 @@ impl WasiView for ComponentRunStates {
     }
 }
 
+// Host implementation for wit interface remains unchanged
 impl gateway::api::http_handler::Host for ComponentRunStates {
     fn handle_api_request(
         &mut self,
@@ -34,44 +37,46 @@ impl gateway::api::http_handler::Host for ComponentRunStates {
     }
 }
 
-fn main() -> Result<()> {
+// Generalized handler for API requests to Wasm components
+async fn handle_api_component(path: &str, wasm_path: &str) -> Result<impl warp::Reply, Infallible> {
     let engine = Engine::default();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
-    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
-
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
     let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_args().build();
     let state = ComponentRunStates {
         wasi_ctx: wasi,
         resource_table: ResourceTable::new(),
     };
     let mut store = Store::new(&engine, state);
-
-    println!("instantiating component...");
-    let component = Component::from_file(&engine, "target/wasm32-wasip2/debug/api1.wasm").expect("Failed to load component");
-    let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_args().build();
-    let state = ComponentRunStates {
-        wasi_ctx: wasi,
-        resource_table: ResourceTable::new(),
-    };
-    let mut store = Store::new(&engine, state);
-
-    Api::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state).unwrap();
-    let api_instance = Api::instantiate(&mut store, &component, &linker)
-        .expect("Failed to instantiate component");
-
+    let component = Component::from_file(&engine, wasm_path).expect("Failed to load component");
+    Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
+    let api_instance = Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
     let req = exports::gateway::api::http_handler::ApiRequest {
-        body: None,
-        path: "/hello".to_string(),
+        method: "GET".to_string(),
+        path: path.to_string(),
         headers: vec![],
-        method: "POST".to_string(),
+        body: None,
     };
+    let resp = api_instance.gateway_api_http_handler().call_handle_api_request(&mut store, &req);
+    let reply = match resp {
+        Ok(r) => warp::reply::with_status(
+            r.body.as_ref().map(|b| String::from_utf8_lossy(b).to_string()).unwrap_or_default(),
+            warp::http::StatusCode::from_u16(r.status as u16).unwrap_or(warp::http::StatusCode::OK),
+        ),
+        Err(_) => warp::reply::with_status("Internal Server Error".to_string(), warp::http::StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    Ok(reply)
+}
 
-    let response = api_instance
-        .gateway_api_http_handler()
-        .call_handle_api_request(&mut store, &req)
-        .expect("Failed to call handle_request");
-
-    println!("response: {:?}", response);
-
-    Ok(())
+#[tokio::main]
+async fn main() {
+    let api1_route = warp::path("api1")
+        .and(warp::get())
+        .and_then(|| async { handle_api_component("/api1", "target/wasm32-wasip2/debug/api1.wasm").await });
+    let api2_route = warp::path("api2")
+        .and(warp::get())
+        .and_then(|| async { handle_api_component("/api2", "target/wasm32-wasip2/debug/api2.wasm").await });
+    let routes = api1_route.or(api2_route);
+    println!("Starting warp web server on 127.0.0.1:3030");
+    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
