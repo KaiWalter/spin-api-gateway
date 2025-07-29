@@ -9,10 +9,17 @@ struct Api;
 
 impl Guest for Api {
     fn handle_api_request(request: ApiRequest) -> ApiResponse {
+        let debug_info = format!(
+            "[API2 Debug]\nMethod: {}\nPath: {}\nHeaders: {:#?}\nBody: {}",
+            request.method,
+            request.path,
+            request.headers,
+            request.body.as_ref().map(|b| String::from_utf8_lossy(b)).unwrap_or_else(|| "<none>".into())
+        );
         ApiResponse {
             status: 200,
             headers: vec![("content-type".to_string(), "text/plain".to_string())],
-            body: Some(format!("Hello from API2! You said: {}", request.path).into_bytes()),
+            body: Some(debug_info.into_bytes()),
         }
     }
 }

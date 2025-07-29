@@ -3,7 +3,7 @@
 ## Project Overview
 This is an experimental project to test whether a plugin-based API Gateway can be implemented using Spin, Wasmtime, or WebAssembly components. The repository is a multi-crate Rust workspace for building WebAssembly (Wasm) API components using Fermyon Spin. It includes:
 - `api-gateway/`: Main gateway service (Rust binary), responsible for routing requests to plugins (API components)
-- `api1/`, `api2/`: Example Wasm API components (Rust libraries, acting as plugins)
+- `api1/`, `api2/`: Example Wasm API components based on Wasm Wasi Preview 2 (Rust libraries, acting as plugins)
 - `wit/`: Shared WIT interface definitions for Spin components
 
 ## Architecture & Data Flow
@@ -20,7 +20,7 @@ This is an experimental project to test whether a plugin-based API Gateway can b
   ```
 - **Build Wasm API components:**
   ```sh
-  cargo build -p api1 -p api2 --target wasm32-wasi
+  cargo build -p api1 -p api2 --target wasm32-wasip2
   ```
 - **Run gateway (native):**
   ```sh
@@ -51,7 +51,7 @@ This is an experimental project to test whether a plugin-based API Gateway can b
 1. Create a new crate (e.g., `api3/`).
 2. Add to workspace in root `Cargo.toml`.
 3. Define WIT interface in `wit/`.
-4. Build with `cargo build -p api3 --target wasm32-wasi`.
+4. Build with `cargo build -p api3 --target wasm32-wasip2`.
 5. Update gateway to route requests to new component.
 
 ---
