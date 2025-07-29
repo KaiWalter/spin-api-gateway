@@ -1,11 +1,27 @@
-use wasmtime::component::{Component, HasSelf, Linker, ResourceTable};
+use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
-use wasmtime_wasi::p2::bindings::sync::Command;
 use wasmtime_wasi::p2::{IoView, WasiCtx, WasiCtxBuilder, WasiView};
 use std::convert::Infallible;
 use warp::Filter;
+use warp::filters::BoxedFilter;
+use std::fs;
+use serde::Deserialize;
+use std::sync::Arc;
 
 wasmtime::component::bindgen!("api" in "../wit/shared-api.wit");
+
+#[derive(Debug, Deserialize, Clone)]
+struct ApiRoute {
+    path: String,
+    component: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RouteConfig {
+    base_folder: String,
+    routes: Vec<ApiRoute>,
+}
 
 pub struct ComponentRunStates {
     pub wasi_ctx: WasiCtx,
@@ -23,7 +39,6 @@ impl WasiView for ComponentRunStates {
     }
 }
 
-// Host implementation for wit interface remains unchanged
 impl gateway::api::http_handler::Host for ComponentRunStates {
     fn handle_api_request(
         &mut self,
@@ -37,7 +52,6 @@ impl gateway::api::http_handler::Host for ComponentRunStates {
     }
 }
 
-// Generalized handler for API requests to Wasm components
 async fn handle_api_component(path: &str, wasm_path: &str) -> Result<impl warp::Reply, Infallible> {
     let engine = Engine::default();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
@@ -70,13 +84,43 @@ async fn handle_api_component(path: &str, wasm_path: &str) -> Result<impl warp::
 
 #[tokio::main]
 async fn main() {
-    let api1_route = warp::path("api1")
-        .and(warp::get())
-        .and_then(|| async { handle_api_component("/api1", "target/wasm32-wasip2/debug/api1.wasm").await });
-    let api2_route = warp::path("api2")
-        .and(warp::get())
-        .and_then(|| async { handle_api_component("/api2", "target/wasm32-wasip2/debug/api2.wasm").await });
-    let routes = api1_route.or(api2_route);
+    // Load routes from routes.json
+    let routes_json = fs::read_to_string("routes.json").expect("Failed to read routes.json");
+    let config: RouteConfig = serde_json::from_str(&routes_json).expect("Failed to parse routes.json");
+    let api_routes = config.routes;
+    let base_folder = config.base_folder;
+    println!("Loaded API routes:");
+    for route in &api_routes {
+        println!("  {} -> {}/{}", route.path, base_folder, route.component);
+    }
+    // Build warp filters for each route and immediately combine into routes
+    let mut routes: Option<BoxedFilter<(Box<dyn warp::Reply>,)>> = None;
+    for route in api_routes {
+        let path = route.path.trim_start_matches('/').to_string();
+        let wasm_path = Arc::new(format!("{}/{}", base_folder, route.component));
+        let filter = warp::path(path.clone())
+            .and(warp::get())
+            .and_then({
+                let path = path.clone();
+                let wasm_path = wasm_path.clone();
+                move || {
+                    let path = path.clone();
+                    let wasm_path = wasm_path.clone();
+                    async move {
+                        match handle_api_component(&format!("/{}", path), &wasm_path).await {
+                            Ok(reply) => Ok::<Box<dyn warp::Reply>, warp::Rejection>(Box::new(reply)),
+                            Err(_) => Err(warp::reject()),
+                        }
+                    }
+                }
+            })
+            .boxed();
+        routes = match routes {
+            None => Some(filter),
+            Some(existing) => Some(existing.or(filter).unify().boxed()),
+        };
+    }
+    let routes = routes.expect("No routes defined");
     println!("Starting warp web server on 127.0.0.1:3030");
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }

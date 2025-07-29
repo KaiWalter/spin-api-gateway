@@ -51,6 +51,8 @@ dependencies = [
  "anyhow",
  "axum",
  "hyper 1.6.0",
+ "serde",
+ "serde_json",
  "tokio",
  "warp",
  "wasmtime",
