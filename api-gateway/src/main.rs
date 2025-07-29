@@ -7,6 +7,7 @@ use warp::filters::BoxedFilter;
 use std::fs;
 use serde::Deserialize;
 use std::sync::Arc;
+use warp::http::Method;
 
 wasmtime::component::bindgen!("api" in "../wit/shared-api.wit");
 
@@ -52,7 +53,7 @@ impl gateway::api::http_handler::Host for ComponentRunStates {
     }
 }
 
-async fn handle_api_component(path: &str, wasm_path: &str) -> Result<impl warp::Reply, Infallible> {
+async fn handle_api_component(method: String, path: &str, headers: Vec<(String, String)>, body: Option<Vec<u8>>, wasm_path: &str) -> Result<impl warp::Reply, Infallible> {
     let engine = Engine::default();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
     wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
@@ -66,18 +67,27 @@ async fn handle_api_component(path: &str, wasm_path: &str) -> Result<impl warp::
     Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
     let api_instance = Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
     let req = exports::gateway::api::http_handler::ApiRequest {
-        method: "GET".to_string(),
+        method,
         path: path.to_string(),
-        headers: vec![],
-        body: None,
+        headers,
+        body,
     };
     let resp = api_instance.gateway_api_http_handler().call_handle_api_request(&mut store, &req);
     let reply = match resp {
-        Ok(r) => warp::reply::with_status(
-            r.body.as_ref().map(|b| String::from_utf8_lossy(b).to_string()).unwrap_or_default(),
-            warp::http::StatusCode::from_u16(r.status as u16).unwrap_or(warp::http::StatusCode::OK),
-        ),
-        Err(_) => warp::reply::with_status("Internal Server Error".to_string(), warp::http::StatusCode::INTERNAL_SERVER_ERROR),
+        Ok(r) => {
+            let mut builder = warp::http::Response::builder()
+                .status(warp::http::StatusCode::from_u16(r.status as u16).unwrap_or(warp::http::StatusCode::OK));
+            for (k, v) in r.headers.iter() {
+                builder = builder.header(k, v);
+            }
+            let body = r.body.as_ref().map(|b| b.clone()).unwrap_or_default();
+            let response = builder.body(body).unwrap();
+            response
+        },
+        Err(_) => warp::http::Response::builder()
+            .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body("Internal Server Error".into())
+            .unwrap(),
     };
     Ok(reply)
 }
@@ -99,15 +109,17 @@ async fn main() {
         let path = route.path.trim_start_matches('/').to_string();
         let wasm_path = Arc::new(format!("{}/{}", base_folder, route.component));
         let filter = warp::path(path.clone())
-            .and(warp::get())
+            .and(warp::any().and(warp::method()).and(warp::header::headers_cloned()).and(warp::body::bytes()))
             .and_then({
                 let path = path.clone();
                 let wasm_path = wasm_path.clone();
-                move || {
+                move |method: Method, headers: warp::http::HeaderMap, body: bytes::Bytes| {
                     let path = path.clone();
                     let wasm_path = wasm_path.clone();
                     async move {
-                        match handle_api_component(&format!("/{}", path), &wasm_path).await {
+                        let headers_vec = headers.iter().map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect();
+                        let body_vec = if !body.is_empty() { Some(body.to_vec()) } else { None };
+                        match handle_api_component(method.as_str().to_string(), &format!("/{}", path), headers_vec, body_vec, &wasm_path).await {
                             Ok(reply) => Ok::<Box<dyn warp::Reply>, warp::Rejection>(Box::new(reply)),
                             Err(_) => Err(warp::reject()),
                         }
