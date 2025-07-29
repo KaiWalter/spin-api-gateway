@@ -6,10 +6,19 @@ use warp::Filter;
 use warp::filters::BoxedFilter;
 use std::fs;
 use serde::Deserialize;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use once_cell::sync::Lazy;
+use lru::LruCache;
 use warp::http::Method;
+use std::num::NonZeroUsize;
 
 wasmtime::component::bindgen!("api" in "../wit/shared-api.wit");
+
+const COMPONENT_CACHE_SIZE: usize = 10;
+
+static COMPONENT_CACHE: Lazy<Mutex<LruCache<String, Arc<Vec<u8>>>>> = Lazy::new(|| {
+    Mutex::new(LruCache::new(NonZeroUsize::new(COMPONENT_CACHE_SIZE).unwrap()))
+});
 
 #[derive(Debug, Deserialize, Clone)]
 struct ApiRoute {
@@ -53,6 +62,17 @@ impl gateway::api::http_handler::Host for ComponentRunStates {
     }
 }
 
+fn get_component_bytes(wasm_path: &str) -> std::io::Result<Arc<Vec<u8>>> {
+    let mut cache = COMPONENT_CACHE.lock().unwrap();
+    if let Some(bytes) = cache.get(wasm_path) {
+        return Ok(bytes.clone());
+    }
+    let bytes = std::fs::read(wasm_path)?;
+    let arc_bytes = Arc::new(bytes);
+    cache.put(wasm_path.to_string(), arc_bytes.clone());
+    Ok(arc_bytes)
+}
+
 async fn handle_api_component(method: String, path: &str, headers: Vec<(String, String)>, body: Option<Vec<u8>>, wasm_path: &str) -> Result<impl warp::Reply, Infallible> {
     let engine = Engine::default();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
@@ -63,7 +83,24 @@ async fn handle_api_component(method: String, path: &str, headers: Vec<(String, 
         resource_table: ResourceTable::new(),
     };
     let mut store = Store::new(&engine, state);
-    let component = Component::from_file(&engine, wasm_path).expect("Failed to load component");
+    let bytes = match get_component_bytes(wasm_path) {
+        Ok(b) => b,
+        Err(e) => {
+            return Ok(warp::http::Response::builder()
+                .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("Failed to load component bytes: {}", e).into())
+                .unwrap());
+        }
+    };
+    let component = match Component::new(&engine, bytes.as_ref()) {
+        Ok(c) => c,
+        Err(e) => {
+            return Ok(warp::http::Response::builder()
+                .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("Failed to create component: {}", e).into())
+                .unwrap());
+        }
+    };
     Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
     let api_instance = Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
     let req = exports::gateway::api::http_handler::ApiRequest {
