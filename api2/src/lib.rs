@@ -1,38 +1,20 @@
-use exports::component::api2::request_handler::{Guest, ApiRequest};
+use crate::exports::gateway::api::http_handler::{Guest,ApiRequest,ApiResponse};
 
 wit_bindgen::generate!({
-    inline: r#"
-    package component:api2;
-
-    interface request-handler {
-        handle-data: func(key: api-request) -> api-request;
-
-        record api-request {
-            name: string,
-            steps: u32,
-            processed: option<bool>,
-        }
-    }
-
-    world api {
-        export request-handler;
-    }
-    "#,
     world: "api",
+    path: "../wit/shared-api.wit",
 });
 
-struct Component;
+struct Api;
 
-impl Guest for Component {
-    fn handle_data(mut request: ApiRequest) -> ApiRequest {
-        println!("{:?}", request);
-
-        // Manipulating the object
-        request.steps += 1;
-        request.processed = Some(true);
-
-        request
+impl Guest for Api {
+    fn handle_api_request(request: ApiRequest) -> ApiResponse {
+        ApiResponse {
+            status: 200,
+            headers: vec![("content-type".to_string(), "text/plain".to_string())],
+            body: Some(format!("Hello from API2! You said: {}", request.path).into_bytes()),
+        }
     }
 }
 
-export!(Component);
+export!(Api);

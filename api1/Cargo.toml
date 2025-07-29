@@ -1,18 +1,13 @@
 [package]
 name = "api1"
-description = "one sample API"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = [ "cdylib" ]
+crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = { workspace = true }
-spin-sdk = { workspace = true }
 wit-bindgen = { workspace = true }
 
 [package.metadata.component]
-package = "component:api1"
-
-[package.metadata.component.dependencies]
+package = "gateway:api"

@@ -1,0 +1,25 @@
+// shared-api.wit
+package gateway:api;
+
+interface http-handler {
+    record api-request {
+        method: string,
+        path: string,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    }
+    
+    record api-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    }
+    
+    // All API components must implement this function
+    handle-api-request: func(request: api-request) -> api-response;
+}
+
+world api {
+    import http-handler;
+    export http-handler;
+}
