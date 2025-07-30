@@ -49,8 +49,8 @@ impl WasiView for ComponentRunStates {
     }
 }
 
-impl gateway::api::http_handler::Host for ComponentRunStates {
-    fn handle_api_request(
+impl host::Host for ComponentRunStates {
+    fn host_api_request(
         &mut self,
         request: gateway::api::http_handler::ApiRequest,
     ) -> gateway::api::http_handler::ApiResponse {
@@ -101,15 +101,15 @@ async fn handle_api_component(method: String, path: &str, headers: Vec<(String, 
                 .unwrap());
         }
     };
-    Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
+    // Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
     let api_instance = Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
-    let req = exports::gateway::api::http_handler::ApiRequest {
+    let req = host::ApiRequest {
         method,
         path: path.to_string(),
         headers,
         body,
     };
-    let resp = api_instance.gateway_api_http_handler().call_handle_api_request(&mut store, &req);
+    let resp = api_instance.guest().call_handle_api_request(&mut store, &req);
     let reply = match resp {
         Ok(r) => {
             let mut builder = warp::http::Response::builder()

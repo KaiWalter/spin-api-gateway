@@ -1,4 +1,4 @@
-use crate::exports::gateway::api::http_handler::{Guest,ApiRequest,ApiResponse};
+use crate::exports::guest::{Guest,ApiRequest,ApiResponse};
 
 wit_bindgen::generate!({
     world: "api",
