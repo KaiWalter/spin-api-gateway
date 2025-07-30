@@ -1,0 +1,15 @@
+{
+  "name": "api-js",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "JavaScript WASI Preview 2 API component for Spin API Gateway",
+  "main": "index.js",
+  "scripts": {
+    "build": "node componentize.js",
+    "all": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@bytecodealliance/componentize-js": "^0.18.4"
+  }
+}

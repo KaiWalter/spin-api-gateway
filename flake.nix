@@ -26,29 +26,45 @@
           overlays = [rust-overlay.overlays.default];
         };
         toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        commonPackages = [
+          toolchain
+          pkgs.rust-analyzer-unwrapped
+          pkgs.rustup
+          pkgs.rustfmt
+          pkgs.cargo-component
+          pkgs.wasm-tools
+          pkgs.wasmtime
+          pkgs.fermyon-spin
+          pkgs.gh
+          pkgs.zsh
+          pkgs.nodejs_20
+          pkgs.nodePackages.npm
+          pkgs.direnv
+        ];
       in {
-        devShells.default = with pkgs;
-          mkShell {
-            packages = [
-              toolchain
-              pkgs.rust-analyzer-unwrapped
-              pkgs.rustup
-              pkgs.rustfmt
-              pkgs.cargo-component
-              pkgs.wasm-tools
-              pkgs.wasmtime
-              pkgs.fermyon-spin
-              pkgs.gh
-              pkgs.zsh
-            ];
-            RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
-            OPENSSL_LIB_DIR = "${openssl.out}/lib";
-            OPENSSL_INCLUDE_DIR = "${openssl.dev}/include";
-            OPENSSL_NO_VENDOR = "1";
-            shellHook = ''
-              exec zsh
-            '';
-          };
+        devShells.default = pkgs.mkShell {
+          packages = commonPackages;
+          OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+          OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
+          OPENSSL_NO_VENDOR = "1";
+          shellHook = ''
+            exec zsh
+          '';
+        };
+
+        devShells.js-deps = pkgs.mkShell {
+          packages = commonPackages;
+          OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+          OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
+          OPENSSL_NO_VENDOR = "1";
+          shellHook = ''
+            pushd api-js
+            npm install
+            export PATH="$PWD/node_modules/.bin:$PATH"
+            popd
+            exec zsh
+          '';
+        };
       }
     );
 }
