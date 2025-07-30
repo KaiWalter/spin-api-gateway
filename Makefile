@@ -15,4 +15,4 @@ api-gateway:
 	cargo build -p api-gateway
 
 run:
-	target/debug/api-gateway
+	cargo run -p api-gateway

@@ -1,23 +1,25 @@
+use lru::LruCache;
+use once_cell::sync::Lazy;
+use serde::Deserialize;
+use std::convert::Infallible;
+use std::fs;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex};
+use warp::filters::BoxedFilter;
+use warp::http::Method;
+use warp::Filter;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::{IoView, WasiCtx, WasiCtxBuilder, WasiView};
-use std::convert::Infallible;
-use warp::Filter;
-use warp::filters::BoxedFilter;
-use std::fs;
-use serde::Deserialize;
-use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
-use lru::LruCache;
-use warp::http::Method;
-use std::num::NonZeroUsize;
 
 wasmtime::component::bindgen!("api" in "../wit/shared-api.wit");
 
 const COMPONENT_CACHE_SIZE: usize = 10;
 
 static COMPONENT_CACHE: Lazy<Mutex<LruCache<String, Arc<Vec<u8>>>>> = Lazy::new(|| {
-    Mutex::new(LruCache::new(NonZeroUsize::new(COMPONENT_CACHE_SIZE).unwrap()))
+    Mutex::new(LruCache::new(
+        NonZeroUsize::new(COMPONENT_CACHE_SIZE).unwrap(),
+    ))
 });
 
 #[derive(Debug, Deserialize, Clone)]
@@ -50,11 +52,8 @@ impl WasiView for ComponentRunStates {
 }
 
 impl host::Host for ComponentRunStates {
-    fn host_api_request(
-        &mut self,
-        request: gateway::api::http_handler::ApiRequest,
-    ) -> gateway::api::http_handler::ApiResponse {
-        gateway::api::http_handler::ApiResponse {
+    fn host_api_request(&mut self, request: host::ApiRequest) -> host::ApiResponse {
+        host::ApiResponse {
             status: 200,
             headers: vec![("content-type".to_string(), "text/plain".to_string())],
             body: Some(format!("Hello from Host! You said: {}", request.path).into_bytes()),
@@ -73,7 +72,13 @@ fn get_component_bytes(wasm_path: &str) -> std::io::Result<Arc<Vec<u8>>> {
     Ok(arc_bytes)
 }
 
-async fn handle_api_component(method: String, path: &str, headers: Vec<(String, String)>, body: Option<Vec<u8>>, wasm_path: &str) -> Result<impl warp::Reply, Infallible> {
+async fn handle_api_component(
+    method: String,
+    path: &str,
+    headers: Vec<(String, String)>,
+    body: Option<Vec<u8>>,
+    wasm_path: &str,
+) -> Result<impl warp::Reply, Infallible> {
     let engine = Engine::default();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
     wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
@@ -102,25 +107,30 @@ async fn handle_api_component(method: String, path: &str, headers: Vec<(String, 
         }
     };
     // Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
-    let api_instance = Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
+    let api_instance =
+        Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
     let req = host::ApiRequest {
         method,
         path: path.to_string(),
         headers,
         body,
     };
-    let resp = api_instance.guest().call_handle_api_request(&mut store, &req);
+    let resp = api_instance
+        .guest()
+        .call_handle_api_request(&mut store, &req);
     let reply = match resp {
         Ok(r) => {
-            let mut builder = warp::http::Response::builder()
-                .status(warp::http::StatusCode::from_u16(r.status as u16).unwrap_or(warp::http::StatusCode::OK));
+            let mut builder = warp::http::Response::builder().status(
+                warp::http::StatusCode::from_u16(r.status as u16)
+                    .unwrap_or(warp::http::StatusCode::OK),
+            );
             for (k, v) in r.headers.iter() {
                 builder = builder.header(k, v);
             }
             let body = r.body.as_ref().map(|b| b.clone()).unwrap_or_default();
             let response = builder.body(body).unwrap();
             response
-        },
+        }
         Err(_) => warp::http::Response::builder()
             .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
             .body("Internal Server Error".into())
@@ -133,7 +143,8 @@ async fn handle_api_component(method: String, path: &str, headers: Vec<(String, 
 async fn main() {
     // Load routes from routes.json
     let routes_json = fs::read_to_string("routes.json").expect("Failed to read routes.json");
-    let config: RouteConfig = serde_json::from_str(&routes_json).expect("Failed to parse routes.json");
+    let config: RouteConfig =
+        serde_json::from_str(&routes_json).expect("Failed to parse routes.json");
     let api_routes = config.routes;
     let base_folder = config.base_folder;
     println!("Loaded API routes:");
@@ -146,7 +157,12 @@ async fn main() {
         let path = route.path.trim_start_matches('/').to_string();
         let wasm_path = Arc::new(format!("{}/{}", base_folder, route.component));
         let filter = warp::path(path.clone())
-            .and(warp::any().and(warp::method()).and(warp::header::headers_cloned()).and(warp::body::bytes()))
+            .and(
+                warp::any()
+                    .and(warp::method())
+                    .and(warp::header::headers_cloned())
+                    .and(warp::body::bytes()),
+            )
             .and_then({
                 let path = path.clone();
                 let wasm_path = wasm_path.clone();
@@ -154,10 +170,27 @@ async fn main() {
                     let path = path.clone();
                     let wasm_path = wasm_path.clone();
                     async move {
-                        let headers_vec = headers.iter().map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect();
-                        let body_vec = if !body.is_empty() { Some(body.to_vec()) } else { None };
-                        match handle_api_component(method.as_str().to_string(), &format!("/{}", path), headers_vec, body_vec, &wasm_path).await {
-                            Ok(reply) => Ok::<Box<dyn warp::Reply>, warp::Rejection>(Box::new(reply)),
+                        let headers_vec = headers
+                            .iter()
+                            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                            .collect();
+                        let body_vec = if !body.is_empty() {
+                            Some(body.to_vec())
+                        } else {
+                            None
+                        };
+                        match handle_api_component(
+                            method.as_str().to_string(),
+                            &format!("/{}", path),
+                            headers_vec,
+                            body_vec,
+                            &wasm_path,
+                        )
+                        .await
+                        {
+                            Ok(reply) => {
+                                Ok::<Box<dyn warp::Reply>, warp::Rejection>(Box::new(reply))
+                            }
                             Err(_) => Err(warp::reject()),
                         }
                     }
