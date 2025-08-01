@@ -12,7 +12,11 @@ use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::{IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
-wasmtime::component::bindgen!("api" in "../wit/shared-api.wit");
+wasmtime::component::bindgen!({
+    path: "../wit/shared-api.wit",
+    world: "api",
+    async: true
+});
 
 const COMPONENT_CACHE_SIZE: usize = 10;
 
@@ -52,7 +56,7 @@ impl WasiView for ComponentRunStates {
 }
 
 impl host::Host for ComponentRunStates {
-    fn host_api_request(&mut self, request: host::ApiRequest) -> host::ApiResponse {
+    async fn host_api_request(&mut self, request: host::ApiRequest) -> host::ApiResponse {
         host::ApiResponse {
             status: 200,
             headers: vec![("content-type".to_string(), "text/plain".to_string())],
@@ -79,15 +83,18 @@ async fn handle_api_component(
     body: Option<Vec<u8>>,
     wasm_path: &str,
 ) -> Result<impl warp::Reply, Infallible> {
-    let engine = Engine::default();
+    let mut config = Config::new();
+    config.async_support(true);  // Enable async support
+    let engine = Engine::new(&config).unwrap();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
-    wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
+    wasmtime_wasi::p2::add_to_linker_async(&mut linker).unwrap();
     let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_args().build();
     let state = ComponentRunStates {
         wasi_ctx: wasi,
         resource_table: ResourceTable::new(),
     };
     let mut store = Store::new(&engine, state);
+
     let bytes = match get_component_bytes(wasm_path) {
         Ok(b) => b,
         Err(e) => {
@@ -97,6 +104,7 @@ async fn handle_api_component(
                 .unwrap());
         }
     };
+
     let component = match Component::new(&engine, bytes.as_ref()) {
         Ok(c) => c,
         Err(e) => {
@@ -106,37 +114,40 @@ async fn handle_api_component(
                 .unwrap());
         }
     };
-    // Api::add_to_linker::<_, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
-    let api_instance =
-        Api::instantiate(&mut store, &component, &linker).expect("Failed to instantiate component");
+
     let req = host::ApiRequest {
         method,
         path: path.to_string(),
         headers,
         body,
     };
-    let resp = api_instance
-        .guest()
-        .call_handle_api_request(&mut store, &req);
-    let reply = match resp {
-        Ok(r) => {
-            let mut builder = warp::http::Response::builder().status(
-                warp::http::StatusCode::from_u16(r.status as u16)
-                    .unwrap_or(warp::http::StatusCode::OK),
-            );
-            for (k, v) in r.headers.iter() {
-                builder = builder.header(k, v);
+
+    // Instantiate and call component asynchronously
+    match Api::instantiate_async(&mut store, &component, &linker).await {
+        Ok(api_instance) => {
+            match api_instance.guest().call_handle_api_request(&mut store, &req).await {
+                Ok(r) => {
+                    let mut builder = warp::http::Response::builder().status(
+                        warp::http::StatusCode::from_u16(r.status as u16)
+                            .unwrap_or(warp::http::StatusCode::OK),
+                    );
+                    for (k, v) in r.headers.iter() {
+                        builder = builder.header(k, v);
+                    }
+                    let body = r.body.as_ref().map(|b| b.clone()).unwrap_or_default();
+                    Ok(builder.body(body).unwrap())
+                }
+                Err(_) => Ok(warp::http::Response::builder()
+                    .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body("Internal Server Error".into())
+                    .unwrap()),
             }
-            let body = r.body.as_ref().map(|b| b.clone()).unwrap_or_default();
-            let response = builder.body(body).unwrap();
-            response
         }
-        Err(_) => warp::http::Response::builder()
+        Err(e) => Ok(warp::http::Response::builder()
             .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body("Internal Server Error".into())
-            .unwrap(),
-    };
-    Ok(reply)
+            .body(format!("Failed to instantiate component: {}", e).into())
+            .unwrap()),
+    }
 }
 
 #[tokio::main]
