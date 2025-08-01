@@ -11,6 +11,7 @@ use warp::Filter;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::{IoView, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
 wasmtime::component::bindgen!({
     path: "../wit/shared-api.wit",
@@ -42,6 +43,7 @@ struct RouteConfig {
 pub struct ComponentRunStates {
     pub wasi_ctx: WasiCtx,
     pub resource_table: ResourceTable,
+    pub http: WasiHttpCtx,
 }
 
 impl IoView for ComponentRunStates {
@@ -52,6 +54,11 @@ impl IoView for ComponentRunStates {
 impl WasiView for ComponentRunStates {
     fn ctx(&mut self) -> &mut WasiCtx {
         &mut self.wasi_ctx
+    }
+}
+impl WasiHttpView for ComponentRunStates {
+    fn ctx(&mut self) -> &mut WasiHttpCtx {
+        &mut self.http
     }
 }
 
@@ -85,13 +92,24 @@ async fn handle_api_component(
 ) -> Result<impl warp::Reply, Infallible> {
     let mut config = Config::new();
     config.async_support(true);  // Enable async support
+    config.wasm_component_model(true);  // Enable component model
     let engine = Engine::new(&config).unwrap();
     let mut linker: Linker<ComponentRunStates> = Linker::new(&engine);
+    
+    // Add WASI functionality
     wasmtime_wasi::p2::add_to_linker_async(&mut linker).unwrap();
+    
+    // Add WASI HTTP functionality
+    wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker).unwrap();
+    
+    // Add our host implementation
+    host::add_to_linker::<ComponentRunStates, wasmtime::component::HasSelf<_>>(&mut linker, |state| state).unwrap();
+    
     let wasi = WasiCtxBuilder::new().inherit_stdio().inherit_args().build();
     let state = ComponentRunStates {
         wasi_ctx: wasi,
         resource_table: ResourceTable::new(),
+        http: WasiHttpCtx::new()
     };
     let mut store = Store::new(&engine, state);
 

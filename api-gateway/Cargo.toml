@@ -8,6 +8,7 @@ anyhow = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 wasmtime = { workspace = true }
 wasmtime-wasi = { workspace = true }
+wasmtime-wasi-http = { workspace = true }
 axum = "0.8"
 hyper = "1"
 warp = "0.3"
