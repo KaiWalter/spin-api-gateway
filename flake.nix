@@ -48,7 +48,10 @@
           OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
           OPENSSL_NO_VENDOR = "1";
           shellHook = ''
-            exec zsh
+            export ANTHROPIC_API_KEY=$(op item get "Claude.ai API Key" --vault Private --fields label=key --format json | jq -r '.value')
+            export AZURE_OPENAI_API_KEY=$(op item get "Azure OpenAI API Key" --vault Private --fields label=key --format json | jq -r '.value')
+            export SHELL="${pkgs.zsh}/bin/zsh"
+            exec $SHELL
           '';
         };
 
@@ -62,7 +65,8 @@
             npm install
             export PATH="$PWD/node_modules/.bin:$PATH"
             popd
-            exec zsh
+            export SHELL="${pkgs.zsh}/bin/zsh"
+            exec $SHELL
           '';
         };
       }
