@@ -48,6 +48,8 @@
           OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
           OPENSSL_NO_VENDOR = "1";
           shellHook = ''
+            export ANTHROPIC_API_KEY=$(op item get "Claude.ai API Key" --vault Private --fields label=key --format json | jq -r '.value')
+            export AZURE_OPENAI_API_KEY=$(op item get "Azure OpenAI API Key" --vault Private --fields label=key --format json | jq -r '.value')
             exec zsh
           '';
         };
