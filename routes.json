@@ -1,8 +1,8 @@
 {
   "baseFolder": "target/wasm32-wasip2/debug",
   "routes": [
-    { "path": "/api1", "component": "api1.wasm" },
-    { "path": "/api2", "component": "api2.wasm" },
-    { "path": "/api-js", "component": "api-js.component.wasm" }
+    { "path": "/api-rs", "component": "api_rs.wasm" },
+    { "path": "/api-js", "component": "api-js.component.wasm" },
+    { "path": "/api-go", "component": "api-go.component.wasm" }
   ]
 }

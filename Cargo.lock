@@ -66,14 +66,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "api1"
-version = "0.1.0"
-dependencies = [
- "wit-bindgen",
-]
-
-[[package]]
-name = "api2"
+name = "api-rs"
 version = "0.1.0"
 dependencies = [
  "wit-bindgen",

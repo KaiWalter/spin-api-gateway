@@ -1,4 +1,4 @@
-// shared-api.wit
+// shared-api.wit - WIT file for Go bindings (with WASI imports)
 package gateway:api;
 
 interface http-handler {

@@ -28,6 +28,21 @@
             allowUnfreePredicate = pkg: builtins.elem (pkgs.lib.getName pkg) ["cursor"];
           };
         };
+        wit-bindgen-go = pkgs.stdenv.mkDerivation {
+          pname = "wit-bindgen-go";
+          version = "0.16.0";
+          src = pkgs.fetchurl {
+            url = "https://github.com/bytecodealliance/go-modules/releases/download/v0.7.0/wit-bindgen-go-linux-amd64.tgz";
+            sha256 = "sha256-X5VbidEXgEiynKfNih3XbMeSzXYCNGjfCOkENiI2hR8=";
+          };
+          dontUnpack = true;
+
+          installPhase = ''
+            mkdir -p $out/bin
+            tar -xf $src -C $out/bin
+            chmod +x $out/bin/wit-bindgen-go
+          '';
+        };
         toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         commonPackages = [
           toolchain
@@ -36,6 +51,7 @@
           pkgs.rustfmt
           pkgs.cargo-component
           pkgs.wasm-tools
+          pkgs.wkg
           pkgs.wasmtime
           pkgs.fermyon-spin
           pkgs.gh
@@ -44,6 +60,9 @@
           pkgs.nodePackages.npm
           pkgs.direnv
           pkgs.code-cursor
+          pkgs.tinygo
+          pkgs.go
+          wit-bindgen-go
         ];
       in {
         devShells.default = pkgs.mkShell {
