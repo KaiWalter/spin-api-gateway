@@ -117,41 +117,144 @@ pub async fn handle_api_component(
         }
     };
 
-    let req = host::ApiRequest {
-        method,
+    // Create initial API request from incoming HTTP data
+    let initial_req = host::ApiRequest {
+        method: method.clone(),
+        host: "localhost".to_string(),
         path: path.to_string(),
-        headers,
-        body,
+        query: "".to_string(),
+        headers: headers.clone(),
+        body: body.clone(),
     };
 
-    // Instantiate and call component asynchronously
-    match Api::instantiate_async(&mut store, &component, &linker).await {
-        Ok(api_instance) => {
-            match api_instance
-                .guest()
-                .call_handle_api_request(&mut store, &req)
-                .await
-            {
-                Ok(r) => {
-                    let mut builder = warp::http::Response::builder().status(
-                        warp::http::StatusCode::from_u16(r.status)
-                            .unwrap_or(warp::http::StatusCode::OK),
-                    );
-                    for (k, v) in r.headers.iter() {
-                        builder = builder.header(k, v);
-                    }
-                    let body = r.body.unwrap_or_default();
-                    Ok(builder.body(body).unwrap())
-                }
-                Err(_) => Ok(warp::http::Response::builder()
-                    .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
-                    .body("Internal Server Error".into())
-                    .unwrap()),
-            }
+    // Instantiate component
+    let api_instance = match Api::instantiate_async(&mut store, &component, &linker).await {
+        Ok(instance) => instance,
+        Err(e) => {
+            return Ok(warp::http::Response::builder()
+                .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("Failed to instantiate component: {e}").into())
+                .unwrap());
         }
-        Err(e) => Ok(warp::http::Response::builder()
-            .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body(format!("Failed to instantiate component: {e}").into())
-            .unwrap()),
+    };
+
+    // Step 1: Call handle_api_request with the incoming request information
+    let processed_req = match api_instance
+        .guest()
+        .call_handle_api_request(&mut store, &initial_req)
+        .await
+    {
+        Ok(req) => req,
+        Err(e) => {
+            return Ok(warp::http::Response::builder()
+                .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("Failed to call handle_api_request: {e}").into())
+                .unwrap());
+        }
+    };
+
+    // Step 2: Call backend asynchronously based on the processed request parameters
+    let backend_response = match call_backend_async(&processed_req).await {
+        Ok(response) => response,
+        Err(e) => {
+            return Ok(warp::http::Response::builder()
+                .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("Backend call failed: {e}").into())
+                .unwrap());
+        }
+    };
+
+    // Step 3: Pass the backend response through handle_api_response
+    let final_response = match api_instance
+        .guest()
+        .call_handle_api_response(&mut store, &backend_response)
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            return Ok(warp::http::Response::builder()
+                .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(format!("Failed to call handle_api_response: {e}").into())
+                .unwrap());
+        }
+    };
+
+    // Convert the final response to HTTP response
+    let mut builder = warp::http::Response::builder().status(
+        warp::http::StatusCode::from_u16(final_response.status)
+            .unwrap_or(warp::http::StatusCode::OK),
+    );
+    for (k, v) in final_response.headers.iter() {
+        builder = builder.header(k, v);
     }
+    let body = final_response.body.unwrap_or_default();
+    Ok(builder.body(body).unwrap())
+}
+
+// Async backend call function
+async fn call_backend_async(request: &host::ApiRequest) -> Result<host::ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    // Build the target URL from the request parameters
+    let base_url = if request.host.starts_with("http://") || request.host.starts_with("https://") {
+        request.host.clone()
+    } else {
+        format!("https://{}", request.host)
+    };
+    
+    let url = if request.query.is_empty() {
+        format!("{}{}", base_url, request.path)
+    } else {
+        format!("{}{}?{}", base_url, request.path, request.query)
+    };
+
+    // Create HTTP client
+    let client = reqwest::Client::new();
+    
+    // Build the request
+    let mut req_builder = match request.method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        "PATCH" => client.patch(&url),
+        "HEAD" => client.head(&url),
+        _ => client.get(&url), // Default to GET for unknown methods
+    };
+
+    // Add headers
+    for (key, value) in &request.headers {
+        req_builder = req_builder.header(key, value);
+    }
+
+    // Add body if present
+    if let Some(body) = &request.body {
+        req_builder = req_builder.body(body.clone());
+    }
+
+    // Execute the request
+    let response = req_builder.send().await?;
+    
+    // Extract response data
+    let status = response.status().as_u16();
+    let mut response_headers = Vec::new();
+    
+    // Convert response headers
+    for (key, value) in response.headers().iter() {
+        if let Ok(value_str) = value.to_str() {
+            response_headers.push((key.to_string(), value_str.to_string()));
+        }
+    }
+    
+    // Get response body
+    let response_body = response.bytes().await?;
+    let body = if response_body.is_empty() {
+        None
+    } else {
+        Some(response_body.to_vec())
+    };
+
+    Ok(host::ApiResponse {
+        status,
+        headers: response_headers,
+        body,
+    })
 }

@@ -1,4 +1,4 @@
-use crate::exports::guest::{Guest,ApiRequest,ApiResponse};
+use crate::exports::guest::{ApiRequest, ApiResponse, Guest};
 
 wit_bindgen::generate!({
     world: "api",
@@ -8,19 +8,11 @@ wit_bindgen::generate!({
 struct Api;
 
 impl Guest for Api {
-    fn handle_api_request(request: ApiRequest) -> ApiResponse {
-        let debug_info = format!(
-            "[API2 Debug]\nMethod: {}\nPath: {}\nHeaders: {:#?}\nBody: {}",
-            request.method,
-            request.path,
-            request.headers,
-            request.body.as_ref().map(|b| String::from_utf8_lossy(b)).unwrap_or_else(|| "<none>".into())
-        );
-        ApiResponse {
-            status: 200,
-            headers: vec![("content-type".to_string(), "text/plain".to_string())],
-            body: Some(debug_info.into_bytes()),
-        }
+    fn handle_api_request(request: ApiRequest) -> ApiRequest {
+        request.clone()
+    }
+    fn handle_api_response(response: ApiResponse) -> ApiResponse {
+        response.clone()
     }
 }
 

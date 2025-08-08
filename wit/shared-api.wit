@@ -4,7 +4,9 @@ package gateway:api;
 interface http-handler {
     record api-request {
         method: string,
+        host: string,
         path: string,
+        query: string,
         headers: list<tuple<string, string>>,
         body: option<list<u8>>,
     }
@@ -25,6 +27,7 @@ world api {
     export guest: interface {
         use http-handler.{api-request};
         use http-handler.{api-response};
-        handle-api-request: func(request: api-request) -> api-response;
+        handle-api-request: func(request: api-request) -> api-request;
+        handle-api-response: func(request: api-response) -> api-response;
     }
 }
