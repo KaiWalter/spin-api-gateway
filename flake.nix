@@ -24,6 +24,9 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [rust-overlay.overlays.default];
+          config = {
+            allowUnfreePredicate = pkg: builtins.elem (pkgs.lib.getName pkg) ["cursor"];
+          };
         };
         toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         commonPackages = [
@@ -40,6 +43,7 @@
           pkgs.nodejs_20
           pkgs.nodePackages.npm
           pkgs.direnv
+          pkgs.code-cursor
         ];
       in {
         devShells.default = pkgs.mkShell {

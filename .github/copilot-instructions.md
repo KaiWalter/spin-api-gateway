@@ -1,4 +1,4 @@
-# Copilot Instructions for spin-api-gateway
+# Copilot Instructions for wasm-api-gateway
 
 ## Project Overview
 This project is a multi-crate Rust workspace for building a plugin-based API Gateway using Fermyon Spin, Wasmtime, and WebAssembly components. It demonstrates dynamic routing to Wasm-based API plugins, with shared WIT interfaces for cross-component communication.

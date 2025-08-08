@@ -1,0 +1,87 @@
+# Cursor Rules for wasm-api-gateway
+
+## Project Overview
+This is a multi-crate Rust workspace for building a plugin-based API Gateway using Fermyon Spin, Wasmtime, and WebAssembly components. The project demonstrates dynamic routing to Wasm-based API plugins with shared WIT interfaces for cross-component communication.
+
+## Code Structure & Navigation
+- **Gateway**: `api-gateway/src/main.rs` - Main gateway logic, Wasm loading, and routing
+- **API Plugins**: 
+  - `api1/src/lib.rs` - Rust API plugin
+  - `api2/src/lib.rs` - Rust API plugin  
+  - `api-js/index.js` - JavaScript API plugin
+- **Shared Interfaces**: `wit/shared-api.wit` - WIT interface definitions
+- **Configuration**: `routes.json` - Path-to-component mapping
+- **Build System**: `flake.nix` - Nix devShell and toolchain setup
+
+## Development Patterns
+- All Rust code uses 2021 edition and should be formatted with `rustfmt`
+- WIT interfaces are versioned and shared in the `wit/` directory
+- Use `cargo-component` for Wasm builds and Spin integration
+- New API components should be added as workspace members in `Cargo.toml`
+- JS plugins use `componentize-js` and must implement the shared WIT interface
+- Environment variables for OpenSSL are configured in `flake.nix`
+
+## Common Commands & Workflows
+When suggesting commands or helping with development:
+
+**Build Commands:**
+```bash
+# Build all Rust crates
+cargo build --workspace
+
+# Build specific Wasm API components
+cargo build -p api1 -p api2 --target wasm32-wasip2
+
+# Build JS component
+cd api-js && npm run build
+
+# Run gateway (native)
+cargo run -p api-gateway
+```
+
+**Development Setup:**
+```bash
+# Enter Nix devShell with all tools
+nix develop
+
+# This provides: Rust, Spin, Wasm tools, Node.js, etc.
+# Auto-starts zsh and installs JS dependencies for api-js
+```
+
+## Code Assistance Guidelines
+- When working with Rust code, suggest using the 2021 edition features
+- For WIT interface changes, ensure compatibility across all components
+- When adding new API components, follow the existing pattern in `api1` and `api2`
+- For JS plugins, ensure they match the shared WIT interface structure
+- Suggest using `cargo fmt` for code formatting
+- When modifying routing, update both `routes.json` and restart the gateway
+
+## Architecture Understanding
+- The gateway loads Wasm modules dynamically using Wasmtime and Spin SDK
+- Plugins are compiled to Wasm and implement the shared WIT interface
+- Routing is configured via `routes.json`, mapping HTTP paths to Wasm components
+- Gateway and plugins communicate using Spin SDK and WIT-defined types/functions
+- Wasm modules are cached in-memory for performance (LRU cache in gateway)
+
+## Adding New Components
+When helping add new API components/plugins:
+
+1. Create a new crate directory (e.g., `api3/`)
+2. Add to workspace in root `Cargo.toml`
+3. Define WIT interface in `wit/` if needed
+4. Build with `cargo build -p api3 --target wasm32-wasip2`
+5. Update `routes.json` to route requests to the new component
+6. Restart the gateway to pick up new routes
+
+## Key Dependencies
+- Fermyon Spin, Wasmtime, Wasm tools
+- GitHub CLI, OpenSSL (via Nix)
+- Node.js for JS plugins
+- `cargo-component` for Wasm builds
+
+## File Navigation Tips
+- Use `Ctrl+P` to quickly navigate between Rust files
+- Use `Ctrl+Shift+F` to search across the workspace
+- Focus on `api-gateway/src/main.rs` for gateway logic
+- Check `wit/shared-api.wit` for interface definitions
+- Review `routes.json` for routing configuration 
