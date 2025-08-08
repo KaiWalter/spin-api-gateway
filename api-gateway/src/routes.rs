@@ -41,12 +41,14 @@ pub fn configuration() -> BoxedFilter<(Box<dyn warp::Reply>,)> {
                 warp::any()
                     .and(warp::method())
                     .and(warp::header::headers_cloned())
+                    .and(warp::path::full())
+                    .and(warp::query::raw().or(warp::any().map(|| "".to_string())).unify())
                     .and(warp::body::bytes()),
             )
             .and_then({
                 let path = path.clone();
                 let wasm_path = wasm_path.clone();
-                move |method: Method, headers: warp::http::HeaderMap, body: bytes::Bytes| {
+                move |method: Method, headers: warp::http::HeaderMap, full_path: warp::path::FullPath, raw_query: String, body: bytes::Bytes| {
                     let path = path.clone();
                     let wasm_path = wasm_path.clone();
                     async move {
@@ -59,12 +61,19 @@ pub fn configuration() -> BoxedFilter<(Box<dyn warp::Reply>,)> {
                         } else {
                             None
                         };
+                        let request_host = headers
+                            .get("host")
+                            .and_then(|v| v.to_str().ok())
+                            .unwrap_or("")
+                            .to_string();
                         match component_handler::handle_api_component(
                             method.as_str().to_string(),
-                            &format!("/{path}"),
+                            full_path.as_str(),
                             headers_vec,
                             body_vec,
                             &wasm_path,
+                            request_host,
+                            raw_query,
                         )
                         .await
                         {

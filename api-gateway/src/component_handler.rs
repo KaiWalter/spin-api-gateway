@@ -69,6 +69,8 @@ pub async fn handle_api_component(
     headers: Vec<(String, String)>,
     body: Option<Vec<u8>>,
     wasm_path: &str,
+    request_host: String,
+    query: String,
 ) -> Result<impl warp::Reply, Infallible> {
     let mut config = Config::new();
     config.async_support(true); // Enable async support
@@ -120,9 +122,9 @@ pub async fn handle_api_component(
     // Create initial API request from incoming HTTP data
     let initial_req = host::ApiRequest {
         method: method.clone(),
-        host: "localhost".to_string(),
+        host: request_host,
         path: path.to_string(),
-        query: "".to_string(),
+        query: query,
         headers: headers.clone(),
         body: body.clone(),
     };
