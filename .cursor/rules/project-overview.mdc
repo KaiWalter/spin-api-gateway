@@ -1,0 +1,24 @@
+# wasm-api-gateway Project Overview
+
+This is a multi-crate Rust workspace for building a plugin-based API Gateway using Fermyon Spin, Wasmtime, and WebAssembly components. The project demonstrates dynamic routing to Wasm-based API plugins with shared WIT interfaces for cross-component communication.
+
+## Core Architecture
+- **Gateway**: [api-gateway/src/main.rs](mdc:api-gateway/src/main.rs) - Main gateway logic, Wasm loading, and routing
+- **API Plugins**: 
+  - [api1/src/lib.rs](mdc:api1/src/lib.rs) - Rust API plugin
+  - [api2/src/lib.rs](mdc:api2/src/lib.rs) - Rust API plugin  
+  - [api-js/index.js](mdc:api-js/index.js) - JavaScript API plugin
+- **Shared Interfaces**: [wit/shared-api.wit](mdc:wit/shared-api.wit) - WIT interface definitions
+- **Configuration**: [routes.json](mdc:routes.json) - Path-to-component mapping
+- **Build System**: [flake.nix](mdc:flake.nix) - Nix devShell and toolchain setup
+- **Workspace**: [Cargo.toml](mdc:Cargo.toml) - Root workspace configuration
+
+## Key Dependencies
+- Fermyon Spin, Wasmtime, Wasm tools
+- GitHub CLI, OpenSSL (via Nix)
+- Node.js for JS plugins
+- `cargo-component` for Wasm builds
+description:
+globs:
+alwaysApply: false
+---

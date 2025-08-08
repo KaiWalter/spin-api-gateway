@@ -1,0 +1,28 @@
+# Gateway Architecture & Routing
+
+## Core Gateway Logic
+The main gateway logic is in [api-gateway/src/main.rs](mdc:api-gateway/src/main.rs) which:
+- Loads Wasm modules dynamically using Wasmtime and Spin SDK
+- Routes HTTP requests to appropriate Wasm API components
+- Caches Wasm modules in-memory for performance (LRU cache)
+- Communicates with plugins using Spin SDK and WIT-defined types/functions
+
+## Routing Configuration
+- Routing is configured via [routes.json](mdc:routes.json), mapping HTTP paths to Wasm components
+- When modifying routing, update both [routes.json](mdc:routes.json) and restart the gateway
+- Routes map to Wasm components in the build output folder
+
+## Plugin Communication
+- Plugins are compiled to Wasm and implement the shared WIT interface
+- Gateway and plugins communicate using Spin SDK and WIT-defined types/functions
+- All plugins must implement the interface defined in [wit/shared-api.wit](mdc:wit/shared-api.wit)
+
+## Development Workflow
+1. Build plugins: `cargo build -p api1 -p api2 --target wasm32-wasip2`
+2. Update [routes.json](mdc:routes.json) if adding new routes
+3. Run gateway: `cargo run -p api-gateway`
+4. Test routing to different API components
+description:
+globs:
+alwaysApply: false
+---

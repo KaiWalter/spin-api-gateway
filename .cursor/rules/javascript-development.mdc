@@ -1,0 +1,30 @@
+# JavaScript Development Guidelines
+
+## JS Plugin Development
+- JS plugins use `componentize-js` and must implement the shared WIT interface
+- Reference [api-js/index.js](mdc:api-js/index.js) for implementation patterns
+- Ensure JS plugins match the shared WIT interface structure in [wit/shared-api.wit](mdc:wit/shared-api.wit)
+
+## Build Commands
+```bash
+# Build JS component
+cd api-js && npm run build
+```
+
+## Development Setup
+```bash
+# Enter Nix devShell with all tools
+nix develop
+
+# This provides: Rust, Spin, Wasm tools, Node.js, etc.
+# Auto-starts zsh and installs JS dependencies for api-js
+```
+
+## Package Management
+- Dependencies are managed in [api-js/package.json](mdc:api-js/package.json)
+- Use `componentize.js` for building Wasm components from JavaScript
+- Node.js is provided via Nix devShell for consistency
+description:
+globs:
+alwaysApply: false
+---
