@@ -1,4 +1,4 @@
-# Spin API Gateway
+# WebAssembly API Gateway
 
 This is an experimental project to test, whether the basic functionality of a plugin-based API Gateway can be implemented in Spin, Wasmtime or WebAssembly components.
 
