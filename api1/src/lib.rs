@@ -11,6 +11,7 @@ impl Guest for Api {
     fn handle_api_request(request: ApiRequest) -> ApiRequest {
         let mut r = request.clone();
         r.host = "https://httpbin.org".to_string();
+        r.path = "/get".to_string();
 
         r
     }

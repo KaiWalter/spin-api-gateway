@@ -193,23 +193,68 @@ pub async fn handle_api_component(
 
 // Async backend call function
 async fn call_backend_async(request: &host::ApiRequest) -> Result<host::ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
-    // This simulates an async backend call based on the request parameters
-    // In a real implementation, you might make HTTP calls, database queries, etc.
+    // Build the target URL from the request parameters
+    let base_url = if request.host.starts_with("http://") || request.host.starts_with("https://") {
+        request.host.clone()
+    } else {
+        format!("https://{}", request.host)
+    };
     
-    // For now, simulate a backend call with a simple response
-    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    let url = if request.query.is_empty() {
+        format!("{}{}", base_url, request.path)
+    } else {
+        format!("{}{}?{}", base_url, request.path, request.query)
+    };
+
+    // Create HTTP client
+    let client = reqwest::Client::new();
     
+    // Build the request
+    let mut req_builder = match request.method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        "PATCH" => client.patch(&url),
+        "HEAD" => client.head(&url),
+        _ => client.get(&url), // Default to GET for unknown methods
+    };
+
+    // Add headers
+    for (key, value) in &request.headers {
+        req_builder = req_builder.header(key, value);
+    }
+
+    // Add body if present
+    if let Some(body) = &request.body {
+        req_builder = req_builder.body(body.clone());
+    }
+
+    // Execute the request
+    let response = req_builder.send().await?;
+    
+    // Extract response data
+    let status = response.status().as_u16();
+    let mut response_headers = Vec::new();
+    
+    // Convert response headers
+    for (key, value) in response.headers().iter() {
+        if let Ok(value_str) = value.to_str() {
+            response_headers.push((key.to_string(), value_str.to_string()));
+        }
+    }
+    
+    // Get response body
+    let response_body = response.bytes().await?;
+    let body = if response_body.is_empty() {
+        None
+    } else {
+        Some(response_body.to_vec())
+    };
+
     Ok(host::ApiResponse {
-        status: 200,
-        headers: vec![
-            ("content-type".to_string(), "application/json".to_string()),
-            ("x-backend-called".to_string(), "true".to_string()),
-        ],
-        body: Some(
-            format!(
-                r#"{{"message": "Backend response for {} {}", "method": "{}", "path": "{}", "host": "{}", "query": "{}"}}"#,
-                request.method, request.path, request.method, request.path, request.host, request.query
-            ).into_bytes()
-        ),
+        status,
+        headers: response_headers,
+        body,
     })
 }
