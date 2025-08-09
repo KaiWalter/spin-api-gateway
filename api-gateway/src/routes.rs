@@ -42,13 +42,20 @@ pub fn configuration() -> BoxedFilter<(Box<dyn warp::Reply>,)> {
                     .and(warp::method())
                     .and(warp::header::headers_cloned())
                     .and(warp::path::full())
-                    .and(warp::query::raw().or(warp::any().map(|| "".to_string())).unify())
+                    .and(
+                        warp::query::raw()
+                            .or(warp::any().map(|| "".to_string()))
+                            .unify(),
+                    )
                     .and(warp::body::bytes()),
             )
             .and_then({
-                let path = path.clone();
                 let wasm_path = wasm_path.clone();
-                move |method: Method, headers: warp::http::HeaderMap, full_path: warp::path::FullPath, raw_query: String, body: bytes::Bytes| {
+                move |method: Method,
+                      headers: warp::http::HeaderMap,
+                      full_path: warp::path::FullPath,
+                      raw_query: String,
+                      body: bytes::Bytes| {
                     let wasm_path = wasm_path.clone();
                     async move {
                         let headers_vec = headers

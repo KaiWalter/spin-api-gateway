@@ -5,8 +5,9 @@ This is an experimental project to test, whether the basic functionality of a pl
 ## Structure
 
 - `api-gateway`: The main API Gateway component, which is responsible for routing requests to the appropriate plugins.
-- `api1`: A sample plugin that can be used to test the API Gateway functionality.
-- `api2`: Another sample plugin that can be used to test the API Gateway functionality and validate routing.
+- `api-go`: _not working yet_ A sample plugin in TinyGo that can be used to test the API Gateway functionality.
+- `api-js`: A sample plugin in Javascript that can be used to test the API Gateway functionality.
+- `api-rs`: A sample plugin in Rust that can be used to test the API Gateway functionality.
 
 ## Links
 

@@ -7,4 +7,3 @@ wasmtime::component::bindgen!({
 
 // The generated types are available through the host module and Api struct
 // Access them via: bindings::host::ApiRequest, bindings::host::ApiResponse, bindings::Api
-

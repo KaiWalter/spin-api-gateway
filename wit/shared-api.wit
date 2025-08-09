@@ -1,4 +1,4 @@
-// shared-api.wit
+// shared-api.wit - for gateway and all plugins to share API definitions
 package gateway:api;
 
 interface http-handler {
