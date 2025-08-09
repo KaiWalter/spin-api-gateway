@@ -3,6 +3,6 @@
   "routes": [
     { "path": "/api-rs", "component": "api_rs.wasm" },
     { "path": "/api-js", "component": "api-js.component.wasm" },
-    { "path": "/api-go", "component": "api-go.component.wasm" }
+    { "path": "/api-go", "component": "api-go.wasm" }
   ]
 }

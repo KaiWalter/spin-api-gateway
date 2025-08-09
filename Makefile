@@ -11,8 +11,8 @@ api-js:
 api-go:
 	wkg wit build -d wit -o ./target/api-wit.wasm
 	cd api-go && wit-bindgen-go generate -w api -o bindings ../target/api-wit.wasm
-	cd api-go && tinygo build -target=wasip2 -o ../target/wasm32-wasip2/debug/api-go.component.wasm main.go
-
+	cd api-go && tinygo build -target=wasip2 -o ../target/wasm32-wasip2/debug/api-go.wasm main.go
+	
 api-gateway:
 	cargo build -p api-gateway
 
